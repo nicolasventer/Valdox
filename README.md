@@ -1,8 +1,8 @@
-# XXXX
+# Valdox
 
 # Description
 
-XXXX is a **...** that allows you to **...**.
+Valdox is a **C++ library** that allows you to **validate data**.
 
 # Features
 
@@ -23,7 +23,7 @@ And above only one include, define `XXXX_IMPLEMENTATION` like this:
 
 ### Header and source
 
-Include the [`xxxx.hpp`](xxxx.hpp) anywhere you want to use it.    
+Include the [`xxxx.hpp`](xxxx.hpp) anywhere you want to use it.  
 Compile with the [`xxxx.cpp`](xxxx.cpp) file or with the built dll available [here](https://github.com/nicolasventer/cpp-template-repo/releases).
 
 ### Build the dll
@@ -41,7 +41,8 @@ No external dependencies.
 
 # Example
 
-*Content of [example.cpp](example.cpp):*
+_Content of [example.cpp](example.cpp):_
+
 ```cpp
 #include <iostream>
 
@@ -49,13 +50,14 @@ int main() { return 0; }
 ```
 
 Output:
+
 ```
 ...
 ```
 
 # Usage
 
-```cpp	
+```cpp
 // XXYY ...
 ```
 
@@ -64,4 +66,4 @@ Output:
 MIT Licence. See [LICENSE file](LICENSE).
 Please refer me with:
 
-	Copyright (c) Nicolas VENTER All rights reserved.
+    Copyright (c) Nicolas VENTER All rights reserved.
