@@ -1,4 +1,5 @@
 #include "valdox.hpp"
+#include <iostream>
 
 int main()
 {
@@ -16,7 +17,7 @@ int main()
 
 	auto l = v.string.literals({"apple", "banana", "cherry"});
 	std::vector<std::string> errors;
-	if (l.validate("orange", errors))
+	if (l.validate("orange", "fruit", errors))
 	{
 		// Valid
 	}
@@ -27,6 +28,24 @@ int main()
 		{
 			// Handle errors
 		}
+	}
+
+	auto r = v.string.regex("^[0-9]+$");
+
+	if (r.validate("1234567890", "number", errors))
+	{
+		// Valid
+		std::cout << "Valid" << std::endl;
+	}
+	else
+	{
+		// Invalid
+		std::cout << "Invalid" << std::endl;
+	}
+
+	for (const auto& err : errors)
+	{
+		std::cout << err << std::endl;
 	}
 	return 0;
 }
