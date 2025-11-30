@@ -180,42 +180,42 @@ namespace valdox
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>>
 		NumberBetweenValidator<T> between(T min, T max) const
 		{
-			return NumberBetweenValidator(min, max);
+			return NumberBetweenValidator<T>(min, max);
 		}
 
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>>
 		NumberGreaterThanValidator<T> greaterThan(T min) const
 		{
-			return NumberGreaterThanValidator(min);
+			return NumberGreaterThanValidator<T>(min);
 		}
 
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>>
 		NumberGreaterOrEqualValidator<T> greaterOrEqual(T min) const
 		{
-			return NumberGreaterOrEqualValidator(min);
+			return NumberGreaterOrEqualValidator<T>(min);
 		}
 
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>> NumberLessThanValidator<T> lessThan(T max) const
 		{
-			return NumberLessThanValidator(max);
+			return NumberLessThanValidator<T>(max);
 		}
 
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>>
 		NumberLessOrEqualValidator<T> lessOrEqual(T max) const
 		{
-			return NumberLessOrEqualValidator(max);
+			return NumberLessOrEqualValidator<T>(max);
 		}
 
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>>
 		NumberMultipleOfValidator<T> multipleOf(T divisor) const
 		{
-			return NumberMultipleOfValidator(divisor);
+			return NumberMultipleOfValidator<T>(divisor);
 		}
 
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>>
 		NumberLiteralValidator<T> literals(const std::vector<T>& lits) const
 		{
-			return NumberLiteralValidator(lits);
+			return NumberLiteralValidator<T>(lits);
 		}
 	};
 
@@ -643,13 +643,13 @@ namespace valdox
 			switch (version)
 			{
 			case EIpVersion::Ipv4:
-				regexOss << "^((?:(?:25[0-5]|2[0-4]\\d|[01]?\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d?))";
+				regexOss << "^((?:(?:25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]\\d|\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]\\d|\\d))";
 				if (withPrefixLength) regexOss << "(?:/([0-9]|[12][0-9]|3[0-2]))";
 				regexOss << "$";
 				break;
 			case EIpVersion::Ipv6:
-				regexOss
-					<< "^((?:[a-fA-F0-9]{1,4}:){1,7}[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,7}:|:(?::[a-fA-F0-9]{1,4}){1,7})";
+				regexOss << "^((?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|((?:[0-9a-fA-F]{1,4}:){0,7}[0-9a-fA-F]{1,4})?::((?:[0-9a-"
+							"fA-F]{1,4}:){0,7}[0-9a-fA-F]{1,4})?|::)";
 				if (withPrefixLength) regexOss << "(?:/([0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))";
 				regexOss << "$";
 				break;
