@@ -5,47 +5,30 @@ int main()
 {
 	Validator v;
 
-	auto between = v.number.between(5, 10);
-	if (between.validate(7))
-	{
-		// Valid
-	}
-	else
-	{
-		// Invalid
-	}
+	auto ageValidator = v.number.between(1, 100);
+	int age = 25;
 
-	auto l = v.string.literals({"apple", "banana", "cherry"});
+	// basic validation
+	if (ageValidator.validate(age)) std::cout << "Age is valid" << std::endl;
+	else
+		std::cout << "Age is invalid" << std::endl;
+
+	auto nameValidator = v.string.length.max(3);
+	std::string name = "John";
+
+	// validation with errors
 	std::vector<std::string> errors;
-	if (l.validate("orange", "fruit", errors))
-	{
-		// Valid
-	}
+	if (nameValidator.validate(name, "name", errors)) std::cout << "Name is valid" << std::endl;
 	else
-	{
-		// Invalid
-		for (const auto& err : errors)
-		{
-			// Handle errors
-		}
-	}
+		std::cout << "Name is invalid" << std::endl;
 
-	auto r = v.string.regex("^[0-9]+$");
+	for (const auto& error : errors) std::cout << error << std::endl;
 
-	if (r.validate("1234567890", "number", errors))
-	{
-		// Valid
-		std::cout << "Valid" << std::endl;
-	}
-	else
-	{
-		// Invalid
-		std::cout << "Invalid" << std::endl;
-	}
+	// special functions
+	int validAge = ageValidator.clamp(age);
+	std::cout << "Valid age: " << validAge << std::endl;
+	std::string validName = nameValidator.crop(name);
+	std::cout << "Valid name: " << validName << std::endl;
 
-	for (const auto& err : errors)
-	{
-		std::cout << err << std::endl;
-	}
 	return 0;
 }

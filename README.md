@@ -1,69 +1,174 @@
 # Valdox
 
-# Description
+## Description
 
-Valdox is a **C++ library** that allows you to **validate data**.
+Valdox is a **header-only C++ library** that provides a simple and intuitive API for **data validation**. It supports validation for both numeric values and strings, with comprehensive error reporting and utility functions for value correction.
 
-# Features
+## Features
 
-- feature 1
-- feature 2
+### Number Validation
+- **Range validation**: `between(min, max)`, `greaterThan(min)`, `greaterOrEqual(min)`, `lessThan(max)`, `lessOrEqual(max)`
+- **Multiple of**: `multipleOf(divisor)` - validates if a number is a multiple of another
+- **Literal matching**: `literals({...})` - validates against a list of allowed values
+- **Value correction**: `clamp(value)` - clamps numbers to valid ranges, `max(value)` - ensures minimum values
 
-# Installation
+### String Validation
+- **Length validation**: `length.between(min, max)`, `length.min(min)`, `length.max(max)`
+- **Pattern matching**: `startsWith(prefix)`, `endsWith(suffix)`, `includes(substring)`, `regex(pattern)`
+- **Literal matching**: `literals({...})` - validates against a list of allowed strings
+- **Format validation**: `email()`, `uuid()`, `url()`, `dateTime()`, `date()`, `time()`, `ip()`, `mac()`
+- **Value correction**: `crop(value)` - truncates strings to maximum length
 
-### Header only
+### Error Reporting
+- Simple boolean validation: `validate(value)`
+- Detailed error messages: `validate(value, varName, errors)` - collects descriptive error messages
 
-Include the [`xxxx.hpp`](xxxx.hpp) anywhere you want to use it.  
-And above only one include, define `XXXX_IMPLEMENTATION` like this:
+## Installation
+
+### Header Only
+
+Include the [`valdox.hpp`](valdox.hpp) file anywhere you want to use it. Optionally, you can use the namespace by defining `VALDOX_USE_NAMESPACE`:
 
 ```cpp
-#define XXXX_IMPLEMENTATION
-#include "xxxx.hpp"
+// #define VALDOX_USE_NAMESPACE // optional, to use the namespace valdox
+#include "valdox.hpp"
 ```
-
-### Header and source
-
-Include the [`xxxx.hpp`](xxxx.hpp) anywhere you want to use it.  
-Compile with the [`xxxx.cpp`](xxxx.cpp) file or with the built dll available [here](https://github.com/nicolasventer/cpp-template-repo/releases).
-
-### Build the dll
-
-```bash
-g++ -shared -O3 -fPIC -static -o xxxx.dll xxxx.cpp
-```
-
-Note: the `-static` flag is required.
 
 ### Requirements
 
-c++11 or later required for compilation.  
-No external dependencies.
+- C++11 or later required for compilation
+- No external dependencies (uses only standard library)
 
-# Example
+## Example
 
 _Content of [example.cpp](example.cpp):_
 
 ```cpp
+#include "valdox.hpp"
 #include <iostream>
 
-int main() { return 0; }
+int main()
+{
+	Validator v;
+
+	auto ageValidator = v.number.between(1, 100);
+	int age = 25;
+
+	// basic validation
+	if (ageValidator.validate(age)) std::cout << "Age is valid" << std::endl;
+	else
+		std::cout << "Age is invalid" << std::endl;
+
+	auto nameValidator = v.string.length.max(3);
+	std::string name = "John";
+
+	// validation with errors
+	std::vector<std::string> errors;
+	if (nameValidator.validate(name, "name", errors)) std::cout << "Name is valid" << std::endl;
+	else
+		std::cout << "Name is invalid" << std::endl;
+
+	for (const auto& error : errors) std::cout << error << std::endl;
+
+	// special functions
+	int validAge = ageValidator.clamp(age);
+	std::cout << "Valid age: " << validAge << std::endl;
+	std::string validName = nameValidator.crop(name);
+	std::cout << "Valid name: " << validName << std::endl;
+
+	return 0;
+}
 ```
 
 Output:
 
 ```
-...
+Age is valid
+Name is invalid
+ValidationError: 'name' received "John", expected length <= 3.
+Valid age: 25
+Valid name: Joh
 ```
 
-# Usage
+## Usage
+
+### Number Validation
 
 ```cpp
-// XXYY ...
+Validator v;
+
+// Range validation
+auto ageValidator = v.number.between(18, 65);
+int age = 25;
+if (ageValidator.validate(age)) { /* valid */ }
+
+// Comparison validators
+auto positiveValidator = v.number.greaterThan(0);
+auto nonNegativeValidator = v.number.greaterOrEqual(0);
+auto smallNumberValidator = v.number.lessThan(100);
+auto maxNumberValidator = v.number.lessOrEqual(100);
+
+// Multiple of
+auto evenValidator = v.number.multipleOf(2);
+
+// Literal matching
+auto statusCodeValidator = v.number.literals({200, 404, 500});
+
+// Value correction
+int clamped = ageValidator.clamp(150); // returns 65
+int minValue = positiveValidator.max(-5); // returns 0
 ```
 
-# Licence
+### String Validation
 
-MIT Licence. See [LICENSE file](LICENSE).
-Please refer me with:
+```cpp
+Validator v;
 
-    Copyright (c) Nicolas VENTER All rights reserved.
+// Length validation
+auto shortNameValidator = v.string.length.max(50);
+auto longPasswordValidator = v.string.length.min(8);
+auto usernameValidator = v.string.length.between(3, 20);
+
+// Pattern matching
+auto emailValidator = v.string.email();
+auto uuidValidator = v.string.uuid();
+auto urlValidator = v.string.url();
+auto httpsValidator = v.string.url(EUrlProtocolFlag::Http, EUrlSecureFlag::Secure);
+
+// Custom patterns
+auto prefixValidator = v.string.startsWith("https://");
+auto suffixValidator = v.string.endsWith(".com");
+auto containsValidator = v.string.includes("example");
+auto regexValidator = v.string.regex("^[A-Z][a-z]+$");
+
+// Literal matching
+auto colorValidator = v.string.literals({"red", "green", "blue"});
+
+// Value correction
+std::string cropped = shortNameValidator.crop("Very long name"); // returns "Very long na"
+```
+
+### Error Reporting
+
+```cpp
+Validator v;
+auto validator = v.number.between(1, 100);
+
+// Simple validation
+if (validator.validate(50)) { /* valid */ }
+
+// Validation with error messages
+std::vector<std::string> errors;
+if (!validator.validate(150, "age", errors)) {
+    // errors now contains: "ValidationError: 'age' received 150, expected value between 1 and 100."
+    for (const auto& error : errors) {
+        std::cout << error << std::endl;
+    }
+}
+```
+
+## License
+
+MIT License. See [LICENSE file](LICENSE).
+
+Copyright (c) Nicolas VENTER All rights reserved.
