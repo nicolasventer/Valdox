@@ -473,14 +473,14 @@ namespace valdox
 		static std::string getRegex(EUrlProtocolFlag protocol, EUrlSecureFlag secure)
 		{
 			std::ostringstream regexOss;
-			regexOss << "^(";
+			regexOss << "^((?:";
 			if (protocol & EUrlProtocolFlag::Ws) regexOss << "ws";
 			regexOss << "|";
 			if (protocol & EUrlProtocolFlag::Http) regexOss << "http";
 			regexOss << ")";
 			if (secure & EUrlSecureFlag::Secure) regexOss << "s";
 			if (secure & EUrlSecureFlag::AllSecureFlags) regexOss << "?";
-			regexOss << "):\\/\\/[^\\s/$.?#].[^\\s]*$";
+			regexOss << "):\\/\\/([^\\s/$.?#].[^\\s]*)$";
 			return regexOss.str();
 		}
 
@@ -525,17 +525,17 @@ namespace valdox
 		static std::string getRegex(EDateTimeOffset offsetOption)
 		{
 			std::ostringstream regexOss;
-			regexOss << "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)";
+			regexOss << "^(\\d{4}-\\d{2}-\\d{2})T(\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?)";
 			switch (offsetOption)
 			{
 			case EDateTimeOffset::None:
 				regexOss << "Z$";
 				break;
 			case EDateTimeOffset::Optional:
-				regexOss << "(?:[+-]\\d{2}:\\d{2}|Z)?$";
+				regexOss << "([+-]\\d{2}:\\d{2}|Z)?$";
 				break;
 			case EDateTimeOffset::Required:
-				regexOss << "(?:[+-]\\d{2}:\\d{2}|Z)$";
+				regexOss << "([+-]\\d{2}:\\d{2}|Z)$";
 				break;
 			}
 			return regexOss.str();
@@ -564,7 +564,7 @@ namespace valdox
 	{
 		static std::string getRegex()
 		{
-			return "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$";
+			return "^(\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01]))T((?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?)$";
 		}
 
 		StringDateTimeLocalValidator() : regex(getRegex()) {}
@@ -594,7 +594,7 @@ namespace valdox
 
 	struct StringDateValidator
 	{
-		static std::string getRegex() { return "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$"; }
+		static std::string getRegex() { return "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$"; }
 
 		StringDateValidator() : regex(getRegex()) {}
 		const std::string regex;
@@ -613,7 +613,7 @@ namespace valdox
 
 	struct StringTimeValidator
 	{
-		static std::string getRegex() { return "^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d(\\.\\d+)?)?$"; }
+		static std::string getRegex() { return "^([01]\\d|2[0-3]):([0-5]\\d)(?::([0-5]\\d(?:\\.\\d+)?))?$"; }
 		StringTimeValidator() : regex(getRegex()) {}
 		const std::string regex;
 
@@ -643,13 +643,14 @@ namespace valdox
 			switch (version)
 			{
 			case EIpVersion::Ipv4:
-				regexOss << "^((25[0-5]|2[0-4]\\d|[01]?\\d?)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?)";
-				if (withPrefixLength) regexOss << "(?:[0-9]|[12][0-9]|3[0-2])";
+				regexOss << "^((?:(?:25[0-5]|2[0-4]\\d|[01]?\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d?))";
+				if (withPrefixLength) regexOss << "(?:/([0-9]|[12][0-9]|3[0-2]))";
 				regexOss << "$";
 				break;
 			case EIpVersion::Ipv6:
-				regexOss << "^(?:[a-fA-F0-9]{1,4}:){1,7}[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,7}:|:(?::[a-fA-F0-9]{1,4}){1,7}";
-				if (withPrefixLength) regexOss << "(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-8])";
+				regexOss
+					<< "^((?:[a-fA-F0-9]{1,4}:){1,7}[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,7}:|:(?::[a-fA-F0-9]{1,4}){1,7})";
+				if (withPrefixLength) regexOss << "(?:/([0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))";
 				regexOss << "$";
 				break;
 			}
