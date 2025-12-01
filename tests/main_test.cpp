@@ -46,8 +46,8 @@ TEST_CASE("NumberGreaterThanValidator")
 	CHECK_FALSE(validator.validate(3, "testVar", errors));
 	CHECK_FALSE(errors.empty());
 
-	CHECK(validator.max(3) == 5);
-	CHECK(validator.max(7) == 7);
+	CHECK(validator.clamp(3) == 6);
+	CHECK(validator.clamp(7) == 7);
 }
 
 TEST_CASE("NumberGreaterOrEqualValidator")
@@ -63,8 +63,8 @@ TEST_CASE("NumberGreaterOrEqualValidator")
 	CHECK_FALSE(validator.validate(3, "testVar", errors));
 	CHECK_FALSE(errors.empty());
 
-	CHECK(validator.max(3) == 5);
-	CHECK(validator.max(7) == 7);
+	CHECK(validator.clamp(3) == 5);
+	CHECK(validator.clamp(7) == 7);
 }
 
 TEST_CASE("NumberLessThanValidator")
@@ -81,8 +81,8 @@ TEST_CASE("NumberLessThanValidator")
 	CHECK_FALSE(validator.validate(15, "testVar", errors));
 	CHECK_FALSE(errors.empty());
 
-	CHECK(validator.min(15) == 10);
-	CHECK(validator.min(7) == 7);
+	CHECK(validator.clamp(15) == 9);
+	CHECK(validator.clamp(7) == 7);
 }
 
 TEST_CASE("NumberLessOrEqualValidator")
@@ -98,8 +98,8 @@ TEST_CASE("NumberLessOrEqualValidator")
 	CHECK_FALSE(validator.validate(15, "testVar", errors));
 	CHECK_FALSE(errors.empty());
 
-	CHECK(validator.min(15) == 10);
-	CHECK(validator.min(7) == 7);
+	CHECK(validator.clamp(15) == 10);
+	CHECK(validator.clamp(7) == 7);
 }
 
 TEST_CASE("NumberMultipleOfValidator")

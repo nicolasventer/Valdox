@@ -32,23 +32,34 @@ namespace valdox
 
 	template <typename T> struct NumberBetweenValidator
 	{
-		NumberBetweenValidator(T min_, T max_) : min(min_), max(max_) {}
+		NumberBetweenValidator(T min_, T max_, bool includeMin_, bool includeMax_) :
+			min(min_), max(max_), includeMin(includeMin_), includeMax(includeMax_)
+		{
+		}
 		const T min;
 		const T max;
+		const bool includeMin;
+		const bool includeMax;
 
-		bool validate(T value) const { return value >= min && value <= max; }
+		bool validate(T value) const
+		{
+			return (includeMin ? value >= min : value > min) && (includeMax ? value <= max : value < max);
+		}
 
 		bool validate(T value, const std::string& varName, std::vector<std::string>& errors) const
 		{
 			if (validate(value)) return true;
 			std::ostringstream errorMessage;
-			errorMessage << "ValidationError: '" << varName << "' received " << value << ", expected value between " << min
-						 << " and " << max << ".";
+			errorMessage << "ValidationError: '" << varName << "' received " << value << ", expected " << min
+						 << (includeMin ? " <= " : " < ") << "{value}" << (includeMax ? " <= " : " < ") << max << ".";
 			errors.push_back(errorMessage.str());
 			return false;
 		}
 
-		T clamp(T value) const { return (value < min) ? min : (value > max) ? max : value; }
+		T clamp(T value) const
+		{
+			return (value < min) ? includeMin ? min : min + 1 : (value > max) ? includeMax ? max : max - 1 : value;
+		}
 	};
 
 	template <typename T> struct NumberGreaterThanValidator
@@ -68,7 +79,7 @@ namespace valdox
 			return false;
 		}
 
-		T max(T value) const { return (value < min) ? min : value; }
+		T clamp(T value) const { return (value < min) ? min + 1 : value; }
 	};
 
 	template <typename T> struct NumberGreaterOrEqualValidator
@@ -87,7 +98,7 @@ namespace valdox
 			return false;
 		}
 
-		T max(T value) const { return (value < min) ? min : value; }
+		T clamp(T value) const { return (value < min) ? min : value; }
 	};
 
 	template <typename T> struct NumberLessThanValidator
@@ -107,7 +118,7 @@ namespace valdox
 			return false;
 		}
 
-		T min(T value) const { return (value > max) ? max : value; }
+		T clamp(T value) const { return (value > max) ? max - 1 : value; }
 	};
 
 	template <typename T> struct NumberLessOrEqualValidator
@@ -126,7 +137,7 @@ namespace valdox
 			return false;
 		}
 
-		T min(T value) const { return (value > max) ? max : value; }
+		T clamp(T value) const { return (value > max) ? max : value; }
 	};
 
 	template <typename T> struct NumberMultipleOfValidator
@@ -178,9 +189,9 @@ namespace valdox
 	struct NumberValidator
 	{
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>>
-		NumberBetweenValidator<T> between(T min, T max) const
+		NumberBetweenValidator<T> between(T min, T max, bool includeMin = true, bool includeMax = true) const
 		{
-			return NumberBetweenValidator<T>(min, max);
+			return NumberBetweenValidator<T>(min, max, includeMin, includeMax);
 		}
 
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>>
@@ -193,6 +204,11 @@ namespace valdox
 		NumberGreaterOrEqualValidator<T> greaterOrEqual(T min) const
 		{
 			return NumberGreaterOrEqualValidator<T>(min);
+		}
+
+		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>> NumberGreaterOrEqualValidator<T> min(T min) const
+		{
+			return NumberGreaterOrEqualValidator(min);
 		}
 
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>> NumberLessThanValidator<T> lessThan(T max) const
@@ -278,8 +294,11 @@ namespace valdox
 
 	struct StringLengthValidator
 	{
+		// inclusive
 		StringLengthBetweenValidator between(size_t min, size_t max) const { return StringLengthBetweenValidator(min, max); }
+		// inclusive
 		StringLengthMinValidator min(size_t min) const { return StringLengthMinValidator(min); }
+		// inclusive
 		StringLengthMaxValidator max(size_t max) const { return StringLengthMaxValidator(max); }
 	};
 
