@@ -548,3 +548,306 @@ TEST_CASE("Validator - Floating Point Numbers")
 	CHECK(floatValidator.validate(0.1f));
 	CHECK_FALSE(floatValidator.validate(0.0f));
 }
+
+// ValidatorBuilder Tests
+struct Person
+{
+	int age;
+	std::string name;
+	std::string email;
+};
+
+struct Product
+{
+	int id;
+	double price;
+	std::string title;
+	std::vector<int> tags;
+	std::vector<std::string> categories;
+};
+
+struct User
+{
+	std::string username;
+	std::string password;
+	int score;
+};
+
+TEST_CASE("ValidatorBuilder - Basic Field Validation")
+{
+	Validator v;
+	ValidatorBuilder<Person> builder;
+
+	builder.add("age", &Person::age, v.number.between(0, 120));
+	builder.add("name", &Person::name, v.string.length.between(1, 50));
+	builder.add("email", &Person::email, v.string.email());
+
+	Person validPerson{25, "John Doe", "john@example.com"};
+	CHECK(builder.validate(validPerson, "person"));
+
+	Person invalidAge{150, "John Doe", "john@example.com"};
+	CHECK_FALSE(builder.validate(invalidAge, "person"));
+
+	Person invalidName{25, "", "john@example.com"};
+	CHECK_FALSE(builder.validate(invalidName, "person"));
+
+	Person invalidEmail{25, "John Doe", "not-an-email"};
+	CHECK_FALSE(builder.validate(invalidEmail, "person"));
+}
+
+TEST_CASE("ValidatorBuilder - Error Collection")
+{
+	Validator v;
+	ValidatorBuilder<Person> builder;
+
+	builder.add("age", &Person::age, v.number.between(0, 120));
+	builder.add("name", &Person::name, v.string.length.between(1, 50));
+	builder.add("email", &Person::email, v.string.email());
+
+	Person invalidPerson{150, "", "not-an-email"};
+	std::vector<std::string> errors;
+	CHECK_FALSE(builder.validate(invalidPerson, "person", errors, false));
+
+	CHECK(errors.size() == 3);
+	CHECK(errors[0].find("person.age") != std::string::npos);
+	CHECK(errors[1].find("person.name") != std::string::npos);
+	CHECK(errors[2].find("person.email") != std::string::npos);
+}
+
+TEST_CASE("ValidatorBuilder - Stop On Error")
+{
+	Validator v;
+	ValidatorBuilder<Person> builder;
+
+	builder.add("age", &Person::age, v.number.between(0, 120));
+	builder.add("name", &Person::name, v.string.length.between(1, 50));
+	builder.add("email", &Person::email, v.string.email());
+
+	Person invalidPerson{150, "", "not-an-email"};
+	std::vector<std::string> errors;
+
+	// With stop on error, should stop after first error
+	CHECK_FALSE(builder.validate(invalidPerson, "person", errors, true));
+	CHECK(errors.size() == 1);
+	CHECK(errors[0].find("person.age") != std::string::npos);
+
+	// Without stop on error, should collect all errors
+	errors.clear();
+	CHECK_FALSE(builder.validate(invalidPerson, "person", errors, false));
+	CHECK(errors.size() == 3);
+}
+
+TEST_CASE("ValidatorBuilder - Vector Field Validation")
+{
+	Validator v;
+	ValidatorBuilder<Product> builder;
+
+	builder.add("id", &Product::id, v.number.greaterThan(0));
+	builder.add("price", &Product::price, v.number.greaterThan(0.0));
+	builder.addVector("tags", &Product::tags, v.number.between(1, 100));
+	builder.addVector("categories", &Product::categories, v.string.length.min(3));
+
+	Product validProduct{1, 19.99, "Test Product", {1, 2, 3}, {"Electronics", "Gadgets"}};
+	CHECK(builder.validate(validProduct, "product"));
+
+	Product invalidTags{1, 19.99, "Test Product", {0, 101, 50}, {"Electronics", "Gadgets"}};
+	CHECK_FALSE(builder.validate(invalidTags, "product"));
+
+	Product invalidCategories{1, 19.99, "Test Product", {1, 2, 3}, {"El", "Ga"}};
+	CHECK_FALSE(builder.validate(invalidCategories, "product"));
+}
+
+TEST_CASE("ValidatorBuilder - Vector Field Error Collection")
+{
+	Validator v;
+	ValidatorBuilder<Product> builder;
+
+	builder.addVector("tags", &Product::tags, v.number.between(1, 100));
+
+	Product invalidProduct{1, 19.99, "Test Product", {0, 101, 50}, {}};
+	std::vector<std::string> errors;
+	CHECK_FALSE(builder.validate(invalidProduct, "product", errors, false));
+
+	CHECK(errors.size() == 2);
+	CHECK(errors[0].find("product.tags[0]") != std::string::npos);
+	CHECK(errors[1].find("product.tags[1]") != std::string::npos);
+}
+
+TEST_CASE("ValidatorBuilder - Vector Field Stop On Error")
+{
+	Validator v;
+	ValidatorBuilder<Product> builder;
+
+	builder.addVector("tags", &Product::tags, v.number.between(1, 100));
+
+	Product invalidProduct{1, 19.99, "Test Product", {0, 101, 50}, {}};
+	std::vector<std::string> errors;
+
+	// With stop on error, should stop after first invalid element
+	CHECK_FALSE(builder.validate(invalidProduct, "product", errors, true));
+	CHECK(errors.size() == 1);
+	CHECK(errors[0].find("product.tags[0]") != std::string::npos);
+
+	// Without stop on error, should collect all errors
+	errors.clear();
+	CHECK_FALSE(builder.validate(invalidProduct, "product", errors, false));
+	CHECK(errors.size() == 2);
+}
+
+TEST_CASE("ValidatorBuilder - Multiple Validators")
+{
+	Validator v;
+	ValidatorBuilder<User> builder;
+
+	builder.add("username", &User::username, v.string.length.between(3, 20));
+	builder.add("password", &User::password, v.string.length.min(8));
+	builder.add("score", &User::score, v.number.greaterOrEqual(0));
+
+	User validUser{"john_doe", "password123", 100};
+	CHECK(builder.validate(validUser, "user"));
+
+	User invalidUser{"ab", "short", -10};
+	CHECK_FALSE(builder.validate(invalidUser, "user"));
+}
+
+TEST_CASE("ValidatorBuilder - Validate Without Errors Parameter")
+{
+	Validator v;
+	ValidatorBuilder<Person> builder;
+
+	builder.add("age", &Person::age, v.number.between(0, 120));
+	builder.add("name", &Person::name, v.string.length.between(1, 50));
+
+	Person validPerson{25, "John Doe", "john@example.com"};
+	CHECK(builder.validate(validPerson, "person"));
+
+	Person invalidPerson{150, "", "john@example.com"};
+	CHECK_FALSE(builder.validate(invalidPerson));
+	CHECK_FALSE(builder.validate(invalidPerson, true)); // With stop on error
+}
+
+TEST_CASE("ValidatorBuilder - All Validators Pass")
+{
+	Validator v;
+	ValidatorBuilder<Person> builder;
+
+	builder.add("age", &Person::age, v.number.between(0, 120));
+	builder.add("name", &Person::name, v.string.length.between(1, 50));
+	builder.add("email", &Person::email, v.string.email());
+
+	Person validPerson{25, "John Doe", "john@example.com"};
+	std::vector<std::string> errors;
+	CHECK(builder.validate(validPerson, "person", errors, false));
+	CHECK(errors.empty());
+}
+
+// Nested object structures for testing
+struct Address
+{
+	std::string street;
+	std::string city;
+	std::string zipCode;
+};
+
+struct Company
+{
+	std::string name;
+	Address address;
+	Person owner;
+	int employeeCount;
+};
+
+TEST_CASE("ValidatorBuilder - Nested Object Validation")
+{
+	Validator v;
+
+	// Create validator for the nested Address object
+	ValidatorBuilder<Address> addressBuilder;
+	addressBuilder.add("street", &Address::street, v.string.length.min(5));
+	addressBuilder.add("city", &Address::city, v.string.length.min(3));
+	addressBuilder.add("zipCode", &Address::zipCode, v.string.regex("^[0-9]{5}(-[0-9]{4})?$"));
+
+	// Create validator for the nested Person object
+	ValidatorBuilder<Person> personBuilder;
+	personBuilder.add("age", &Person::age, v.number.between(18, 100));
+	personBuilder.add("name", &Person::name, v.string.length.between(1, 50));
+	personBuilder.add("email", &Person::email, v.string.email());
+
+	// Create validator for the Company object
+	ValidatorBuilder<Company> companyBuilder;
+	companyBuilder.add("name", &Company::name, v.string.length.between(1, 100));
+	companyBuilder.add("address", &Company::address, addressBuilder);
+	companyBuilder.add("owner", &Company::owner, personBuilder);
+	companyBuilder.add("employeeCount", &Company::employeeCount, v.number.greaterOrEqual(0));
+
+	// Test with valid nested objects
+	Address validAddress{"123 Main Street", "New York", "10001"};
+	Person validOwner{35, "John Smith", "john.smith@example.com"};
+	Company validCompany{"Acme Corp", validAddress, validOwner, 50};
+
+	CHECK(companyBuilder.validate(validCompany));
+
+	// Test with invalid nested Address
+	Address invalidAddress{"123", "NY", "invalid"};
+	Company invalidAddressCompany{"Acme Corp", invalidAddress, validOwner, 50};
+	std::vector<std::string> errors;
+	CHECK_FALSE(companyBuilder.validate(invalidAddressCompany, "company", errors, false));
+	CHECK(errors.size() >= 3); // Should have errors for street, city, and zipCode
+	bool foundAddressError = false;
+	for (const auto& error : errors)
+	{
+		if (error.find("address.street") != std::string::npos || error.find("address.city") != std::string::npos
+			|| error.find("address.zipCode") != std::string::npos)
+		{
+			foundAddressError = true;
+			break;
+		}
+	}
+	CHECK(foundAddressError);
+
+	// Test with invalid nested Person
+	Person invalidOwner{15, "", "not-an-email"};
+	Company invalidOwnerCompany{"Acme Corp", validAddress, invalidOwner, 50};
+	errors.clear();
+	CHECK_FALSE(companyBuilder.validate(invalidOwnerCompany, "company", errors, false));
+	CHECK(errors.size() >= 3); // Should have errors for age, name, and email
+	bool foundOwnerError = false;
+	for (const auto& error : errors)
+	{
+		if (error.find("owner.age") != std::string::npos || error.find("owner.name") != std::string::npos
+			|| error.find("owner.email") != std::string::npos)
+		{
+			foundOwnerError = true;
+			break;
+		}
+	}
+	CHECK(foundOwnerError);
+
+	// Test with multiple invalid nested objects
+	Company invalidCompany{"", invalidAddress, invalidOwner, -10};
+	errors.clear();
+	CHECK_FALSE(companyBuilder.validate(invalidCompany, "company", errors, false));
+	CHECK(errors.size() >= 6); // Multiple errors from all nested objects
+}
+
+TEST_CASE("ValidatorBuilder - Nested Object with Stop On Error")
+{
+	Validator v;
+
+	ValidatorBuilder<Address> addressBuilder;
+	addressBuilder.add("street", &Address::street, v.string.length.min(5));
+	addressBuilder.add("city", &Address::city, v.string.length.min(2));
+
+	ValidatorBuilder<Company> companyBuilder;
+	companyBuilder.add("name", &Company::name, v.string.length.between(1, 100));
+	companyBuilder.add("address", &Company::address, addressBuilder);
+
+	Address invalidAddress{"123", "NY", "10001"};
+	Person validOwner{35, "John Smith", "john@example.com"};
+	Company company{"Acme Corp", invalidAddress, validOwner, 50};
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(companyBuilder.validate(company, "company", errors, true));
+	// Should stop after first error in nested validation
+	CHECK(errors.size() == 1);
+}

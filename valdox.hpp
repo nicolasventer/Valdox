@@ -206,11 +206,6 @@ namespace valdox
 			return NumberGreaterOrEqualValidator<T>(min);
 		}
 
-		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>> NumberGreaterOrEqualValidator<T> min(T min) const
-		{
-			return NumberGreaterOrEqualValidator(min);
-		}
-
 		template <typename T, typename = std::enable_if_t<is_numeric<T>::value>> NumberLessThanValidator<T> lessThan(T max) const
 		{
 			return NumberLessThanValidator<T>(max);
@@ -751,6 +746,74 @@ namespace valdox
 	{
 		NumberValidator number;
 		StringValidator string;
+	};
+
+	template <typename U, typename V> struct has_validate_method
+	{
+	private:
+		template <typename T>
+		static auto test(int) -> decltype(std::declval<const T&>().validate(std::declval<const U&>(),
+											  std::declval<const std::string&>(),
+											  std::declval<std::vector<std::string>&>()),
+								  std::true_type{});
+
+		template <typename> static std::false_type test(...);
+
+	public:
+		static constexpr bool value = std::is_same_v<decltype(test<V>(0)), std::true_type>;
+	};
+
+	template <typename T> struct ValidatorBuilder
+	{
+	private:
+		std::vector<
+			std::function<bool(const T& obj, const std::string& name, std::vector<std::string>& errors, bool bStopOnError)>>
+			validatorFnList;
+
+	public:
+		template <typename U, typename V, typename = std::enable_if_t<has_validate_method<U, V>::value>>
+		void add(const std::string& fieldName, U T::*fieldPtr, V validator)
+		{
+			auto validateFn
+				= [=, this](const T& obj, const std::string& name, std::vector<std::string>& errors, bool /* bStopOnError */)
+			{ return validator.validate(obj.*fieldPtr, name + "." + fieldName, errors); };
+			validatorFnList.push_back(validateFn);
+		}
+
+		template <typename U, typename V, typename = std::enable_if_t<has_validate_method<U, V>::value>>
+		void addVector(const std::string& fieldName, std::vector<U> T::*fieldPtr, V validator)
+		{
+			auto validateFn
+				= [=, this](const T& obj, const std::string& name, std::vector<std::string>& errors, bool bStopOnError)
+			{
+				bool result = true;
+				for (size_t i = 0; i < (obj.*fieldPtr).size(); i++)
+				{
+					std::ostringstream nameOss;
+					nameOss << name << "." << fieldName << "[" << i << "]";
+					if (!validator.validate((obj.*fieldPtr)[i], nameOss.str(), errors))
+					{
+						if (bStopOnError) return false;
+						result = false;
+					}
+				}
+				return result;
+			};
+			validatorFnList.push_back(validateFn);
+		}
+
+		bool validate(const T& obj, bool bStopOnError = false) const
+		{
+			std::vector<std::string> errors;
+			return validate(obj, "", errors, bStopOnError);
+		}
+
+		bool validate(const T& obj, const std::string& name, std::vector<std::string>& errors, bool bStopOnError = false) const
+		{
+			for (const auto& validateFn : validatorFnList)
+				if (!validateFn(obj, name, errors, bStopOnError) && bStopOnError) return false;
+			return errors.empty();
+		}
 	};
 
 #ifdef VALDOX_USE_NAMESPACE
