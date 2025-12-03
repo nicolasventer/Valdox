@@ -367,6 +367,118 @@ namespace valdox
 		}
 	};
 
+	struct StringBetweenValidator
+	{
+		StringBetweenValidator(const std::string& min_, const std::string& max_, bool includeMin_, bool includeMax_) :
+			min(min_), max(max_), includeMin(includeMin_), includeMax(includeMax_)
+		{
+		}
+		const std::string min;
+		const std::string max;
+		const bool includeMin;
+		const bool includeMax;
+
+		bool validate(const std::string& value) const
+		{
+			return (includeMin ? value >= min : value > min) && (includeMax ? value <= max : value < max);
+		}
+
+		bool validate(const std::string& value, const std::string& varName, std::vector<std::string>& errors) const
+		{
+			if (validate(value)) return true;
+			std::ostringstream errorMessage;
+			errorMessage << "ValidationError: '" << varName << "' received \"" << value << "\", expected " << min
+						 << (includeMin ? " <= " : " < ") << "{value}" << (includeMax ? " <= " : " < ") << max << ".";
+			errors.push_back(errorMessage.str());
+			return false;
+		}
+	};
+
+	struct StringGreaterThanValidator
+	{
+		StringGreaterThanValidator(const std::string& min_) : min(min_) {}
+		const std::string min;
+
+		bool validate(const std::string& value) const { return value > min; }
+
+		bool validate(const std::string& value, const std::string& varName, std::vector<std::string>& errors) const
+		{
+			if (validate(value)) return true;
+			std::ostringstream errorMessage;
+			errorMessage << "ValidationError: '" << varName << "' received \"" << value << "\", expected to be greater than \""
+						 << min << "\".";
+			errors.push_back(errorMessage.str());
+			return false;
+		}
+	};
+
+	struct StringGreaterOrEqualValidator
+	{
+		StringGreaterOrEqualValidator(const std::string& min_) : min(min_) {}
+		const std::string min;
+
+		bool validate(const std::string& value) const { return value >= min; }
+
+		bool validate(const std::string& value, const std::string& varName, std::vector<std::string>& errors) const
+		{
+			if (validate(value)) return true;
+			std::ostringstream errorMessage;
+			errorMessage << "ValidationError: '" << varName << "' received \"" << value << "\", expected to be >= \"" << min
+						 << "\".";
+			errors.push_back(errorMessage.str());
+			return false;
+		}
+	};
+
+	struct StringLessThanValidator
+	{
+		StringLessThanValidator(const std::string& max_) : max(max_) {}
+		const std::string max;
+
+		bool validate(const std::string& value) const { return value < max; }
+
+		bool validate(const std::string& value, const std::string& varName, std::vector<std::string>& errors) const
+		{
+			if (validate(value)) return true;
+			std::ostringstream errorMessage;
+			errorMessage << "ValidationError: '" << varName << "' received \"" << value << "\", expected to be less than \""
+						 << max << "\".";
+			errors.push_back(errorMessage.str());
+			return false;
+		}
+	};
+
+	struct StringLessOrEqualValidator
+	{
+		StringLessOrEqualValidator(const std::string& max_) : max(max_) {}
+		const std::string max;
+
+		bool validate(const std::string& value) const { return value <= max; }
+
+		bool validate(const std::string& value, const std::string& varName, std::vector<std::string>& errors) const
+		{
+			if (validate(value)) return true;
+			std::ostringstream errorMessage;
+			errorMessage << "ValidationError: '" << varName << "' received \"" << value << "\", expected to be <= \"" << max
+						 << "\".";
+			errors.push_back(errorMessage.str());
+			return false;
+		}
+	};
+
+	struct StringCompareValidator
+	{
+		StringGreaterThanValidator greaterThan(const std::string& min) const { return StringGreaterThanValidator(min); }
+		StringGreaterOrEqualValidator greaterOrEqual(const std::string& min) const { return StringGreaterOrEqualValidator(min); }
+		StringLessThanValidator lessThan(const std::string& max) const { return StringLessThanValidator(max); }
+		StringLessOrEqualValidator lessOrEqual(const std::string& max) const { return StringLessOrEqualValidator(max); }
+		StringBetweenValidator between(
+			const std::string& min, const std::string& max, bool includeMin = true, bool includeMax = true) const
+		{
+			return StringBetweenValidator(min, max, includeMin, includeMax);
+		}
+	};
+
 	struct StringIncludesValidator
 	{
 		StringIncludesValidator(const std::string& substring_) : substring(substring_) {}
@@ -380,6 +492,35 @@ namespace valdox
 			std::ostringstream errorMessage;
 			errorMessage << "ValidationError: '" << varName << "' received \"" << value << "\", expected to include \""
 						 << substring << "\".";
+			errors.push_back(errorMessage.str());
+			return false;
+		}
+	};
+
+	struct StringContainsAnyCharValidator
+	{
+		StringContainsAnyCharValidator(const std::string& charSet_) : charSet(charSet_) {}
+		const std::string charSet;
+
+		bool validate(const std::string& value) const
+		{
+			for (char c : charSet)
+				if (value.find(c) != std::string::npos) return true;
+			return false;
+		}
+
+		bool validate(const std::string& value, const std::string& varName, std::vector<std::string>& errors) const
+		{
+			if (validate(value)) return true;
+			std::ostringstream errorMessage;
+			errorMessage << "ValidationError: '" << varName << "' received \"" << value
+						 << "\", expected to contain at least one of [";
+			for (size_t i = 0; i < charSet.size(); ++i)
+			{
+				errorMessage << "'" << charSet[i] << "'";
+				if (i < charSet.size() - 1) errorMessage << ", ";
+			}
+			errorMessage << "].";
 			errors.push_back(errorMessage.str());
 			return false;
 		}
@@ -716,14 +857,18 @@ namespace valdox
 			return false;
 		}
 	};
-
 	struct StringValidator
 	{
 		StringLengthValidator length;
 		StringLiteralValidator literals(const std::vector<std::string>& lits) const { return StringLiteralValidator(lits); }
 		StringStartsWithValidator startsWith(const std::string& prefix) const { return StringStartsWithValidator(prefix); }
 		StringEndsWithValidator endsWith(const std::string& suffix) const { return StringEndsWithValidator(suffix); }
+		StringCompareValidator compare;
 		StringIncludesValidator includes(const std::string& substring) const { return StringIncludesValidator(substring); }
+		StringContainsAnyCharValidator containsAnyChar(const std::string& charSet) const
+		{
+			return StringContainsAnyCharValidator(charSet);
+		}
 		StringRegexValidator regex(const std::string& regex) const { return StringRegexValidator(regex); }
 		StringEmailValidator email() const { return StringEmailValidator(); }
 		StringUuidValidator uuid() const { return StringUuidValidator(); }
@@ -763,12 +908,17 @@ namespace valdox
 		static constexpr bool value = std::is_same_v<decltype(test<V>(0)), std::true_type>;
 	};
 
+	template <typename T>
+	using ValidateFn = std::function<bool(const T& value, const std::string& name, std::vector<std::string>& errors)>;
+
+	template <typename T>
+	using StoppableValidateFn
+		= std::function<bool(const T& value, const std::string& name, std::vector<std::string>& errors, bool bStopOnError)>;
+
 	template <typename T> struct ValidatorBuilder
 	{
 	private:
-		std::vector<
-			std::function<bool(const T& obj, const std::string& name, std::vector<std::string>& errors, bool bStopOnError)>>
-			validatorFnList;
+		std::vector<StoppableValidateFn<T>> validatorFnList;
 
 	public:
 		template <typename U, typename V, typename = std::enable_if_t<has_validate_method<U, V>::value>>
@@ -813,6 +963,62 @@ namespace valdox
 			for (const auto& validateFn : validatorFnList)
 				if (!validateFn(obj, name, errors, bStopOnError) && bStopOnError) return false;
 			return errors.empty();
+		}
+	};
+
+	template <typename U> struct AndValidator
+	{
+	private:
+		std::vector<ValidateFn<U>> validatorFnList;
+
+	public:
+		template <typename V, typename = std::enable_if_t<has_validate_method<U, V>::value>> void add(const V& validator)
+		{
+			auto validateFn = [=, this](const U& obj, const std::string& name, std::vector<std::string>& errors)
+			{ return validator.validate(obj, name, errors); };
+			validatorFnList.push_back(validateFn);
+		}
+
+		bool validate(const U& value, bool bStopOnError = false) const
+		{
+			std::vector<std::string> errors;
+			return validate(value, "", errors, bStopOnError);
+		}
+
+		bool validate(const U& value, const std::string& name, std::vector<std::string>& errors, bool bStopOnError = false) const
+		{
+			for (const auto& validateFn : validatorFnList)
+				if (!validateFn(value, name, errors) && bStopOnError) return false;
+			return errors.empty();
+		}
+	};
+
+	template <typename U> struct OrValidator
+	{
+	private:
+		std::vector<ValidateFn<U>> validatorFnList;
+
+	public:
+		template <typename V, typename = std::enable_if_t<has_validate_method<U, V>::value>> void add(const V& validator)
+		{
+			auto validateFn = [=, this](const U& obj, const std::string& name, std::vector<std::string>& errors)
+			{ return validator.validate(obj, name, errors); };
+			validatorFnList.push_back(validateFn);
+		}
+
+		bool validate(const U& value) const
+		{
+			std::vector<std::string> errors;
+			return validate(value, "", errors);
+		}
+
+		bool validate(const U& value, const std::string& name, std::vector<std::string>& errors) const
+		{
+			std::vector<std::string> tempErrors;
+			for (const auto& validateFn : validatorFnList)
+				if (validateFn(value, name, tempErrors)) return true;
+			errors.insert(errors.end(), tempErrors.begin(), tempErrors.end());
+			return false;
 		}
 	};
 

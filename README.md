@@ -17,6 +17,8 @@ It supports validation for both numeric values and strings, with comprehensive e
 ### String Validation
 - **Length validation**: `length.between(min, max)`, `length.min(min)`, `length.max(max)`
 - **Pattern matching**: `startsWith(prefix)`, `endsWith(suffix)`, `includes(substring)`, `regex(pattern)` with capture group extraction
+- **Character validation**: `containsAnyChar(charSet)` - validates that string contains at least one character from a set
+- **String comparison**: `compare.greaterThan(min)`, `compare.greaterOrEqual(min)`, `compare.lessThan(max)`, `compare.lessOrEqual(max)`, `compare.between(min, max, includeMin, includeMax)` - lexicographic string comparison
 - **Literal matching**: `literals({...})` - validates against a list of allowed strings
 - **Format validation**: `email()`, `uuid()`, `url(protocol, secure)`, `dateTime().global(offset)` / `dateTime().local()`, `date()`, `time()`, `ip(version, withPrefixLength)`, `mac(separator)`
 - **Value correction**: `crop(value)` - truncates strings to maximum length
@@ -169,6 +171,11 @@ auto macNoSep = v.string.mac(""); // No separator
 auto prefixValidator = v.string.startsWith("https://");
 auto suffixValidator = v.string.endsWith(".com");
 auto containsValidator = v.string.includes("example");
+auto containsCharValidator = v.string.containsAnyChar("!@#$%"); // Must contain at least one of these characters
+
+// String comparison (lexicographic)
+auto minVersionValidator = v.string.compare.greaterOrEqual("1.0.0");
+auto versionRangeValidator = v.string.compare.between("1.0.0", "2.0.0");
 
 // Regex validation with capture group extraction
 auto regexValidator = v.string.regex("^([A-Z][a-z]+)$");
@@ -373,6 +380,57 @@ if (companyBuilder.validate(company)) {
 // Error paths include nested field names
 // e.g., "ValidationError: 'company.address.street' received \"123\", expected length >= 5."
 // e.g., "ValidationError: 'company.owner.age' received 15, expected 18 <= {value} <= 100."
+```
+
+### Combining Validators with AND/OR Logic
+
+You can combine multiple validators using `AndValidator` and `OrValidator`:
+
+#### AndValidator
+
+All validators must pass for the value to be valid:
+
+```cpp
+Validator v;
+AndValidator<int> andValidator;
+
+andValidator.add(v.number.greaterThan(0));
+andValidator.add(v.number.lessThan(100));
+andValidator.add(v.number.multipleOf(5));
+
+int value = 25;
+if (andValidator.validate(value)) {
+    // value is > 0, < 100, and a multiple of 5
+}
+
+// With error reporting
+std::vector<std::string> errors;
+if (!andValidator.validate(150, "value", errors, false)) {
+    // errors contains all validation failures
+}
+```
+
+#### OrValidator
+
+At least one validator must pass for the value to be valid:
+
+```cpp
+Validator v;
+OrValidator<std::string> orValidator;
+
+orValidator.add(v.string.email());
+orValidator.add(v.string.uuid());
+
+std::string value = "user@example.com";
+if (orValidator.validate(value)) {
+    // value is either an email or a UUID
+}
+
+// With error reporting
+std::vector<std::string> errors;
+if (!orValidator.validate("invalid", "value", errors)) {
+    // errors contains errors from all failed validators
+}
 ```
 
 ## License

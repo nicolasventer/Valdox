@@ -851,3 +851,410 @@ TEST_CASE("ValidatorBuilder - Nested Object with Stop On Error")
 	// Should stop after first error in nested validation
 	CHECK(errors.size() == 1);
 }
+
+// String ContainsAnyChar Validator Tests
+TEST_CASE("StringContainsAnyCharValidator")
+{
+	Validator v;
+	auto validator = v.string.containsAnyChar("!@#$%");
+
+	CHECK(validator.validate("password!"));
+	CHECK(validator.validate("test@example"));
+	CHECK(validator.validate("hello#world"));
+	CHECK(validator.validate("value$test"));
+	CHECK(validator.validate("test%value"));
+	CHECK(validator.validate("!@#$%")); // All characters
+	CHECK_FALSE(validator.validate("password"));
+	CHECK_FALSE(validator.validate(""));
+	CHECK_FALSE(validator.validate("hello world"));
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(validator.validate("password", "testVar", errors));
+	CHECK_FALSE(errors.empty());
+	CHECK(errors[0].find("testVar") != std::string::npos);
+	CHECK(errors[0].find("contain at least one") != std::string::npos);
+}
+
+TEST_CASE("StringContainsAnyCharValidator - Single Character")
+{
+	Validator v;
+	auto validator = v.string.containsAnyChar("a");
+
+	CHECK(validator.validate("apple"));
+	CHECK(validator.validate("banana"));
+	CHECK(validator.validate("a"));
+	CHECK_FALSE(validator.validate(""));
+	CHECK_FALSE(validator.validate("test"));
+}
+
+TEST_CASE("StringContainsAnyCharValidator - Multiple Characters")
+{
+	Validator v;
+	auto validator = v.string.containsAnyChar("0123456789");
+
+	CHECK(validator.validate("password123"));
+	CHECK(validator.validate("test0"));
+	CHECK(validator.validate("9value"));
+	CHECK_FALSE(validator.validate("password"));
+	CHECK_FALSE(validator.validate(""));
+}
+
+// String Comparison Validator Tests
+TEST_CASE("StringGreaterThanValidator")
+{
+	Validator v;
+	auto validator = v.string.compare.greaterThan("apple");
+
+	CHECK(validator.validate("banana"));
+	CHECK(validator.validate("zebra"));
+	CHECK(validator.validate("banana apple")); // Lexicographic comparison
+	CHECK(validator.validate("apricot"));	   // "apricot" > "apple" lexicographically (r > p)
+	CHECK_FALSE(validator.validate("apple"));
+	CHECK_FALSE(validator.validate("a"));
+	CHECK_FALSE(validator.validate("ap")); // "ap" < "apple"
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(validator.validate("a", "testVar", errors));
+	CHECK_FALSE(errors.empty());
+	CHECK(errors[0].find("testVar") != std::string::npos);
+	CHECK(errors[0].find("greater than") != std::string::npos);
+}
+
+TEST_CASE("StringGreaterOrEqualValidator")
+{
+	Validator v;
+	auto validator = v.string.compare.greaterOrEqual("apple");
+
+	CHECK(validator.validate("apple"));
+	CHECK(validator.validate("banana"));
+	CHECK(validator.validate("zebra"));
+	CHECK(validator.validate("apricot")); // "apricot" >= "apple" lexicographically
+	CHECK_FALSE(validator.validate("a"));
+	CHECK_FALSE(validator.validate("ap")); // "ap" < "apple"
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(validator.validate("a", "testVar", errors));
+	CHECK_FALSE(errors.empty());
+}
+
+TEST_CASE("StringLessThanValidator")
+{
+	Validator v;
+	auto validator = v.string.compare.lessThan("zebra");
+
+	CHECK(validator.validate("apple"));
+	CHECK(validator.validate("banana"));
+	CHECK_FALSE(validator.validate("zebra apple")); // "zebra apple" > "zebra" lexicographically
+	CHECK_FALSE(validator.validate("zebra"));
+	CHECK_FALSE(validator.validate("zzz"));
+	CHECK_FALSE(validator.validate("zebraz")); // "zebraz" > "zebra"
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(validator.validate("zzz", "testVar", errors));
+	CHECK_FALSE(errors.empty());
+	CHECK(errors[0].find("less than") != std::string::npos);
+}
+
+TEST_CASE("StringLessOrEqualValidator")
+{
+	Validator v;
+	auto validator = v.string.compare.lessOrEqual("zebra");
+
+	CHECK(validator.validate("apple"));
+	CHECK(validator.validate("banana"));
+	CHECK(validator.validate("zebra"));
+	CHECK_FALSE(validator.validate("zzz"));
+	CHECK_FALSE(validator.validate("zz"));
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(validator.validate("zzz", "testVar", errors));
+	CHECK_FALSE(errors.empty());
+}
+
+TEST_CASE("StringBetweenValidator")
+{
+	Validator v;
+	auto validator = v.string.compare.between("apple", "zebra");
+
+	CHECK(validator.validate("apple"));
+	CHECK(validator.validate("banana"));
+	CHECK(validator.validate("zebra"));
+	CHECK(validator.validate("middle"));
+	CHECK(validator.validate("apricot"));	// "apricot" is between "apple" and "zebra"
+	CHECK_FALSE(validator.validate("ap"));	// Less than "apple"
+	CHECK_FALSE(validator.validate("zzz")); // Greater than "zebra"
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(validator.validate("ap", "testVar", errors));
+	CHECK_FALSE(errors.empty());
+}
+
+TEST_CASE("StringBetweenValidator - Exclusive Bounds")
+{
+	Validator v;
+	auto validator = v.string.compare.between("apple", "zebra", false, false);
+
+	CHECK(validator.validate("banana"));
+	CHECK(validator.validate("middle"));
+	CHECK(validator.validate("apricot"));	  // "apricot" is between "apple" and "zebra"
+	CHECK_FALSE(validator.validate("apple")); // Excluded
+	CHECK_FALSE(validator.validate("zebra")); // Excluded
+	CHECK_FALSE(validator.validate("ap"));	  // Less than "apple"
+	CHECK_FALSE(validator.validate("zzz"));	  // Greater than "zebra"
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(validator.validate("apple", "testVar", errors));
+	CHECK_FALSE(errors.empty());
+}
+
+TEST_CASE("StringBetweenValidator - Version Comparison")
+{
+	Validator v;
+	auto validator = v.string.compare.between("1.0.0", "2.0.0");
+
+	CHECK(validator.validate("1.0.0"));
+	CHECK(validator.validate("1.5.0"));
+	CHECK(validator.validate("2.0.0"));
+	CHECK(validator.validate("1.9.9"));
+	CHECK_FALSE(validator.validate("0.9.9"));
+	CHECK_FALSE(validator.validate("2.0.1"));
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(validator.validate("0.9.9", "version", errors));
+	CHECK_FALSE(errors.empty());
+}
+
+// AndValidator Tests
+TEST_CASE("AndValidator - Number Validation")
+{
+	Validator v;
+	AndValidator<int> andValidator;
+
+	andValidator.add(v.number.greaterThan(0));
+	andValidator.add(v.number.lessThan(100));
+	andValidator.add(v.number.multipleOf(5));
+
+	CHECK(andValidator.validate(5));
+	CHECK(andValidator.validate(25));
+	CHECK(andValidator.validate(95));
+	CHECK_FALSE(andValidator.validate(0));	 // Not greater than 0
+	CHECK_FALSE(andValidator.validate(100)); // Not less than 100
+	CHECK_FALSE(andValidator.validate(7));	 // Not multiple of 5
+	CHECK_FALSE(andValidator.validate(150)); // Not less than 100
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(andValidator.validate(7, "value", errors, false));
+	CHECK_FALSE(errors.empty());
+}
+
+TEST_CASE("AndValidator - String Validation")
+{
+	Validator v;
+	AndValidator<std::string> andValidator;
+
+	andValidator.add(v.string.length.min(5));
+	andValidator.add(v.string.length.max(20));
+	andValidator.add(v.string.startsWith("test"));
+
+	CHECK(andValidator.validate("test123"));
+	CHECK(andValidator.validate("testing"));
+	CHECK(andValidator.validate("test value"));
+	CHECK_FALSE(andValidator.validate("test"));						   // Too short
+	CHECK_FALSE(andValidator.validate("hello"));					   // Doesn't start with "test"
+	CHECK_FALSE(andValidator.validate("test" + std::string(20, 'x'))); // Too long
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(andValidator.validate("test", "value", errors, false));
+	CHECK_FALSE(errors.empty());
+}
+
+TEST_CASE("AndValidator - Error Collection")
+{
+	Validator v;
+	AndValidator<int> andValidator;
+
+	andValidator.add(v.number.greaterThan(0));
+	andValidator.add(v.number.lessThan(100));
+	andValidator.add(v.number.multipleOf(5));
+
+	std::vector<std::string> errors;
+	// Value fails all three conditions
+	CHECK_FALSE(andValidator.validate(-5, "value", errors, false));
+	CHECK(errors.size() >= 1); // At least one error
+
+	errors.clear();
+	// Value fails multiple conditions
+	CHECK_FALSE(andValidator.validate(150, "value", errors, false));
+	CHECK(errors.size() >= 1);
+}
+
+TEST_CASE("AndValidator - Stop On Error")
+{
+	Validator v;
+	AndValidator<int> andValidator;
+
+	andValidator.add(v.number.greaterThan(0));
+	andValidator.add(v.number.lessThan(100));
+	andValidator.add(v.number.multipleOf(5));
+
+	std::vector<std::string> errors;
+	// With stop on error, should stop after first failure
+	CHECK_FALSE(andValidator.validate(-5, "value", errors, true));
+	CHECK(errors.size() == 1);
+
+	errors.clear();
+	// Without stop on error, should collect all failures
+	CHECK_FALSE(andValidator.validate(-5, "value", errors, false));
+	CHECK(errors.size() >= 1);
+}
+
+TEST_CASE("AndValidator - All Validators Pass")
+{
+	Validator v;
+	AndValidator<int> andValidator;
+
+	andValidator.add(v.number.greaterThan(0));
+	andValidator.add(v.number.lessThan(100));
+
+	std::vector<std::string> errors;
+	CHECK(andValidator.validate(50, "value", errors, false));
+	CHECK(errors.empty());
+}
+
+TEST_CASE("AndValidator - Validate Without Errors Parameter")
+{
+	Validator v;
+	AndValidator<int> andValidator;
+
+	andValidator.add(v.number.greaterThan(0));
+	andValidator.add(v.number.lessThan(100));
+
+	CHECK(andValidator.validate(50));
+	CHECK(andValidator.validate(50, true)); // With stop on error
+	CHECK_FALSE(andValidator.validate(150));
+	CHECK_FALSE(andValidator.validate(150, true));
+}
+
+// OrValidator Tests
+TEST_CASE("OrValidator - String Validation")
+{
+	Validator v;
+	OrValidator<std::string> orValidator;
+
+	orValidator.add(v.string.email());
+	orValidator.add(v.string.uuid());
+
+	CHECK(orValidator.validate("test@example.com"));					 // Valid email
+	CHECK(orValidator.validate("123e4567-e89b-12d3-a456-426614174000")); // Valid UUID
+	CHECK_FALSE(orValidator.validate("not-an-email-or-uuid"));
+	CHECK_FALSE(orValidator.validate("invalid"));
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(orValidator.validate("invalid", "value", errors));
+	CHECK_FALSE(errors.empty());
+}
+
+TEST_CASE("OrValidator - Number Validation")
+{
+	Validator v;
+	OrValidator<int> orValidator;
+
+	orValidator.add(v.number.literals<int>({1, 3, 5}));
+	orValidator.add(v.number.between(10, 20));
+
+	CHECK(orValidator.validate(1));		   // In literals
+	CHECK(orValidator.validate(3));		   // In literals
+	CHECK(orValidator.validate(15));	   // In range
+	CHECK(orValidator.validate(10));	   // In range
+	CHECK(orValidator.validate(20));	   // In range
+	CHECK_FALSE(orValidator.validate(7));  // Not in literals or range
+	CHECK_FALSE(orValidator.validate(25)); // Not in literals or range
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(orValidator.validate(7, "value", errors));
+	CHECK_FALSE(errors.empty());
+}
+
+TEST_CASE("OrValidator - Error Collection")
+{
+	Validator v;
+	OrValidator<std::string> orValidator;
+
+	orValidator.add(v.string.email());
+	orValidator.add(v.string.uuid());
+
+	std::vector<std::string> errors;
+	CHECK_FALSE(orValidator.validate("invalid", "value", errors));
+	// Should collect errors from all validators that failed
+	CHECK_FALSE(errors.empty());
+	CHECK(errors.size() >= 1);
+}
+
+TEST_CASE("OrValidator - First Validator Passes")
+{
+	Validator v;
+	OrValidator<std::string> orValidator;
+
+	orValidator.add(v.string.email());
+	orValidator.add(v.string.uuid());
+
+	std::vector<std::string> errors;
+	CHECK(orValidator.validate("test@example.com", "value", errors));
+	CHECK(errors.empty());
+}
+
+TEST_CASE("OrValidator - Second Validator Passes")
+{
+	Validator v;
+	OrValidator<std::string> orValidator;
+
+	orValidator.add(v.string.email());
+	orValidator.add(v.string.uuid());
+
+	std::vector<std::string> errors;
+	CHECK(orValidator.validate("123e4567-e89b-12d3-a456-426614174000", "value", errors));
+	CHECK(errors.empty());
+}
+
+TEST_CASE("OrValidator - Validate Without Errors Parameter")
+{
+	Validator v;
+	OrValidator<std::string> orValidator;
+
+	orValidator.add(v.string.email());
+	orValidator.add(v.string.uuid());
+
+	CHECK(orValidator.validate("test@example.com"));
+	CHECK_FALSE(orValidator.validate("invalid"));
+}
+
+TEST_CASE("OrValidator - Multiple Validators")
+{
+	Validator v;
+	OrValidator<std::string> orValidator;
+
+	orValidator.add(v.string.email());
+	orValidator.add(v.string.uuid());
+	orValidator.add(v.string.startsWith("test_"));
+
+	CHECK(orValidator.validate("test@example.com"));					 // Email
+	CHECK(orValidator.validate("123e4567-e89b-12d3-a456-426614174000")); // UUID
+	CHECK(orValidator.validate("test_value"));							 // Starts with "test_"
+	CHECK_FALSE(orValidator.validate("invalid"));
+}
+
+TEST_CASE("OrValidator - Complex Combination")
+{
+	Validator v;
+	OrValidator<int> orValidator;
+
+	orValidator.add(v.number.literals<int>({42, 100, 200}));
+	orValidator.add(v.number.between(1, 10));
+	orValidator.add(v.number.greaterThan(1000));
+
+	CHECK(orValidator.validate(42));		// In literals
+	CHECK(orValidator.validate(5));			// In range
+	CHECK(orValidator.validate(2000));		// Greater than 1000
+	CHECK_FALSE(orValidator.validate(50));	// Not in any condition
+	CHECK_FALSE(orValidator.validate(500)); // Not in any condition
+}
